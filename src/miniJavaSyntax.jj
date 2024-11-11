@@ -1,0 +1,155 @@
+PARSER_BEGIN(MiniJava)
+
+public class MiniJava{
+
+
+}
+
+PARSER_END(MiniJava)
+
+SKIP : { " " | "\t" | "\n" | "\r" }
+TOKEN : {< FINAL: "final">}
+TOKEN : {< INT : "int">}
+TOKEN : { < WHILE : "while" > }
+TOKEN : { < IF : "if" > }
+TOKEN : { < ELSE : "else" > }
+TOKEN : { < PRINT : "print" > }
+TOKEN : { < NUMBER : ( <DIGIT> )+ > }
+TOKEN : { < DIGIT : [ "0"-"9" ] > }
+TOKEN : { < KLAMMERAUF : "(" > }
+TOKEN : { < KLAMMERZU : ")" > }
+TOKEN : { < PLUS : "+" > }
+TOKEN : { < MINUS : "-" > }
+TOKEN : { < MAL : "*" > }
+TOKEN : { < DIV : "/" > }
+TOKEN : { <ComOp: "<" | ">" |"<=" |">=" |"==" |"!=" > }
+TOKEN : {< IDENT : ["a"-"z"] (["a"-"z" , "A"-"z"])*>}
+void Empty () : {}
+{ {}}
+
+ void programm ():{}
+{
+  constDecl() varDecl() statement() <EOF>
+}
+
+void constDecl ():{}
+{
+   <FINAL> <INT> constZuw() constList() ";" |
+   Empty()
+}
+
+void constZuw():{}
+{
+  <IDENT> "="  <NUMBER>
+}
+
+void constList ():{}
+{
+  "," constZuw() constList() |
+  Empty()
+}
+
+void varDecl():{}
+{
+  <INT> <IDENT> varZuw() varList() ";" |
+  Empty()
+}
+
+void varZuw():{}
+{
+  "=" <NUMBER> |
+  Empty()
+}
+
+void varList():{}
+{
+   "," <IDENT> varZuw() varList() |
+   Empty()
+}
+void expression():{}
+{
+   term() summe()
+}
+
+void term():{}
+{
+ faktor() produkt()
+}
+
+void summe():{}{
+ <PLUS> term() summe()  |
+ <MINUS> term() summe() |
+ Empty()
+}
+
+void produkt():{}
+{
+ <MAL> faktor() produkt() |
+ <DIV> faktor() produkt() |
+ Empty()
+}
+
+void faktor():{}
+{
+ <NUMBER>  |
+ <IDENT>   |
+  <KLAMMERAUF> expression() <KLAMMERZU>
+}
+
+void condition():{}
+{
+expression() <ComOp> expression()
+}
+
+void statement():{}
+{
+   <IDENT> "=" expression() ";" |
+   <PRINT> <KLAMMERAUF> expression() <KLAMMERZU> ";" |
+   "{" stmtList() "}" |
+   <IF> condition() statement() optElse()  |
+   <WHILE> condition() statement()
+}
+
+void optElse():{}
+{
+ ("else" statement())?
+}
+
+void stmtList():{}
+{
+ (statement() stmtList() )?
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
