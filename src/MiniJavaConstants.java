@@ -70,8 +70,6 @@ public interface MiniJavaConstants {
     "\";\"",
     "\"=\"",
     "\",\"",
-    "\"{\"",
-    "\"}\"",
   };
 
 }

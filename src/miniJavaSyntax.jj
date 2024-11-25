@@ -2,6 +2,8 @@ PARSER_BEGIN(MiniJava)
 
 public class MiniJava{
 
+    static SymbolTable table = new SymbolTable();
+    static CodeErzeugung codeErzeugung = new  CodeErzeugung();
 
 }
 
@@ -29,7 +31,7 @@ void Empty () : {}
 
  void programm ():{}
 {
-  constDecl() varDecl() statement() <EOF>
+  constDecl() varDecl() (statement())* <EOF> { codeErzeugung.print(); codeErzeugung.translateToOpcodes(); codeErzeugung.printByteCode(); }
 }
 
 void constDecl ():{}
@@ -40,7 +42,9 @@ void constDecl ():{}
 
 void constZuw():{}
 {
-  <IDENT> "="  <NUMBER>
+  <IDENT> {String ide = token.image;}
+  "="
+  <NUMBER> {table.addConst(ide, Integer.parseInt( token.image)); codeErzeugung.add("bipush "+table.getValue(ide)); codeErzeugung.add("istore "+table.getAddress(ide));}
 }
 
 void constList ():{}
@@ -49,23 +53,24 @@ void constList ():{}
   Empty()
 }
 
-void varDecl():{}
+void varDecl() : {}
 {
-  <INT> <IDENT> varZuw() varList() ";" |
+  <INT> <IDENT> { String ide = token.image; } varZuw(ide) varList() ";" |
   Empty()
 }
 
-void varZuw():{}
+void varZuw(String ide) : {}
 {
-  "=" <NUMBER> |
+  "=" <NUMBER> { table.addVar(ide, Integer.parseInt(token.image));  codeErzeugung.add("bipush "+table.getValue(ide)); codeErzeugung.add("istore "+table.getAddress(ide));} |
   Empty()
 }
 
-void varList():{}
+void varList() : {}
 {
-   "," <IDENT> varZuw() varList() |
-   Empty()
+  "," <IDENT> { String ide = token.image; } varZuw(ide) varList() |
+  Empty()
 }
+
 void expression():{}
 {
    term() summe()
@@ -77,48 +82,35 @@ void term():{}
 }
 
 void summe():{}{
- <PLUS> term() summe()  |
- <MINUS> term() summe() |
+ <PLUS>  term(){codeErzeugung.add("iadd");}  summe()  |
+ <MINUS> term()  {codeErzeugung.add("isub");} summe() |
  Empty()
 }
 
 void produkt():{}
 {
- <MAL> faktor() produkt() |
- <DIV> faktor() produkt() |
+ <MAL> faktor()  {codeErzeugung.add("imul");} produkt() |
+ <DIV> faktor()  {codeErzeugung.add("idiv");} produkt() |
  Empty()
 }
 
 void faktor():{}
 {
- <NUMBER>  |
- <IDENT>   |
+  <NUMBER>    {codeErzeugung.add("bipush " + token.image);}    |
+  <IDENT>   {codeErzeugung.add("iload "+table.getAddress(token.image));}|
   <KLAMMERAUF> expression() <KLAMMERZU>
-}
-
-void condition():{}
-{
-expression() <ComOp> expression()
 }
 
 void statement():{}
 {
-   <IDENT> "=" expression() ";" |
-   <PRINT> <KLAMMERAUF> expression() <KLAMMERZU> ";" |
-   "{" stmtList() "}" |
-   <IF> condition() statement() optElse()  |
-   <WHILE> condition() statement()
+  <IDENT> {String ide = token.image;  if(table.getTyp(ide)=="const"){
+    throw new SymbolAlreadyDefinedException();
+}}
+   "=" expression()";"
+   {codeErzeugung.add("istore "+ table.getAddress(ide));} |
+  <PRINT> <KLAMMERAUF> expression() <KLAMMERZU> ";"
 }
 
-void optElse():{}
-{
- ("else" statement())?
-}
-
-void stmtList():{}
-{
- (statement() stmtList() )?
-}
 
 
 
