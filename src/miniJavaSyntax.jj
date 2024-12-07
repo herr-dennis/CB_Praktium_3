@@ -1,9 +1,14 @@
 PARSER_BEGIN(MiniJava)
 
-public class MiniJava{
+import exceptions.ConstantModificationException;
+import exceptions.SymbolNotDeclaredException;
+import exceptions.SymbolDoesNotExist;
+import exceptions.SymbolAlreadyDefinedException;
 
+public class MiniJava {
     static SymbolTable table = new SymbolTable();
     static CodeErzeugung codeErzeugung = new  CodeErzeugung();
+
 
 }
 
@@ -29,87 +34,189 @@ TOKEN : {< IDENT : ["a"-"z"] (["a"-"z" , "A"-"z"])*>}
 void Empty () : {}
 { {}}
 
- void programm ():{}
+ void programm () throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist   :{}
 {
-  constDecl() varDecl() (statement())* <EOF> { codeErzeugung.print(); codeErzeugung.translateToOpcodes(); codeErzeugung.printByteCode(); }
+  constDecl() varDecl() statement() <EOF> { codeErzeugung.print(); codeErzeugung.translateToOpcodes(); codeErzeugung.printByteCode(); System.out.println(codeErzeugung.getByteCount()); }
 }
 
-void constDecl ():{}
+void constDecl () throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist  :{}
 {
    <FINAL> <INT> constZuw() constList() ";" |
    Empty()
 }
 
-void constZuw():{}
+void constZuw()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}
 {
   <IDENT> {String ide = token.image;}
   "="
-  <NUMBER> {table.addConst(ide, Integer.parseInt( token.image)); codeErzeugung.add("bipush "+table.getValue(ide)); codeErzeugung.add("istore "+table.getAddress(ide));}
+  <NUMBER> {table.addConst(ide, Integer.parseInt( token.image));}
 }
 
-void constList ():{}
+void constList ()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}
 {
   "," constZuw() constList() |
   Empty()
 }
 
-void varDecl() : {}
+void varDecl() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist : {}
 {
   <INT> <IDENT> { String ide = token.image; } varZuw(ide) varList() ";" |
   Empty()
 }
 
-void varZuw(String ide) : {}
+void varZuw(String ide) throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist : {}
 {
   "=" <NUMBER> { table.addVar(ide, Integer.parseInt(token.image));  codeErzeugung.add("bipush "+table.getValue(ide)); codeErzeugung.add("istore "+table.getAddress(ide));} |
   Empty()
 }
 
-void varList() : {}
+void varList() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist : {}
 {
   "," <IDENT> { String ide = token.image; } varZuw(ide) varList() |
   Empty()
 }
 
-void expression():{}
+void expression()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}
 {
    term() summe()
 }
 
-void term():{}
+void term()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}
 {
  faktor() produkt()
 }
 
-void summe():{}{
+void summe()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}{
  <PLUS>  term(){codeErzeugung.add("iadd");}  summe()  |
  <MINUS> term()  {codeErzeugung.add("isub");} summe() |
  Empty()
 }
 
-void produkt():{}
+void produkt()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}
 {
  <MAL> faktor()  {codeErzeugung.add("imul");} produkt() |
  <DIV> faktor()  {codeErzeugung.add("idiv");} produkt() |
  Empty()
 }
 
-void faktor():{}
+void faktor()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist:{}
 {
   <NUMBER>    {codeErzeugung.add("bipush " + token.image);}    |
-  <IDENT>   {codeErzeugung.add("iload "+table.getAddress(token.image));}|
+  <IDENT>
+     {
+      if (!table.contains(token.image)) {
+         throw new SymbolNotDeclaredException();
+     }
+     if (table.getTyp(token.image).equals("var")) {
+         codeErzeugung.add("iload " + table.getAddress(token.image));
+     } else {
+         codeErzeugung.add("bipush " + table.getValue(token.image));
+     }
+
+
+}
+
+
+
+  |
   <KLAMMERAUF> expression() <KLAMMERZU>
 }
 
-void statement():{}
+void statement() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist : {}
 {
-  <IDENT> {String ide = token.image;  if(table.getTyp(ide)=="const"){
-    throw new SymbolAlreadyDefinedException();
-}}
-   "=" expression()";"
-   {codeErzeugung.add("istore "+ table.getAddress(ide));} |
-  <PRINT> <KLAMMERAUF> expression() <KLAMMERZU> ";"
+
+    <IDENT>
+     {
+        String ide = token.image;
+        if (table.getTyp(ide).equals("const")) {
+            throw new ConstantModificationException();
+        }
+    }
+    "=" expression() ";"
+    {
+        codeErzeugung.add("istore " + table.getAddress(ide));
+    }
+    |
+    <PRINT> <KLAMMERAUF> expression() <KLAMMERZU> ";"
+   |
+    "{" stmtLIST() "}"
+    |
+    <IF> condition() statement() optElse()
+    |
+    <WHILE>  {int rücksprung_if = codeErzeugung.getByteCount();}  condition()
+
+     {int bevor_Statement =codeErzeugung.getByteCount();
+      System.out.println(bevor_Statement);}
+
+     statement()
+
+     {int statementByteCode = codeErzeugung.getByteCount();
+      statementByteCode =  statementByteCode-bevor_Statement ;
+        System.out.println("Das Statement: "+ statementByteCode);
+
+
+     codeErzeugung.insertAddress(Integer.toString(statementByteCode+6));
+     int afterStatement = codeErzeugung.getByteCount();
+     int gotoStrung = afterStatement - rücksprung_if+1;
+      codeErzeugung.add("goto "+  -gotoStrung);}
+
 }
+
+void stmtLIST() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist: {}
+{
+statement() stmtLIST() |
+Empty()
+}
+
+void optElse() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist : {}
+{
+ <ELSE> statement() |
+ Empty()
+}
+
+void condition() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist:{}
+{
+expression() <ComOp> {String compOp =token.image;} expression()
+{
+ switch (compOp) {
+         case "<":
+             codeErzeugung.add("if_icmpge -1"); // Umgekehrter Vergleich für "<"
+             break;
+         case "<=":
+             codeErzeugung.add("if_icmpgt -1"); // Umgekehrter Vergleich für "<="
+             break;
+         case ">":
+             codeErzeugung.add("if_icmple -1"); // Umgekehrter Vergleich für ">"
+             break;
+         case ">=":
+             codeErzeugung.add("if_icmplt -1 "); // Umgekehrter Vergleich für ">="
+             break;
+         case "==":
+             codeErzeugung.add("if_icmpne -1" ); // Umgekehrter Vergleich für "=="
+             break;
+         case "!=":
+             codeErzeugung.add("if_icmpeq -1"); // Umgekehrter Vergleich für "!="
+             break;
+         default:
+     }
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+}
+
+
 
 
 

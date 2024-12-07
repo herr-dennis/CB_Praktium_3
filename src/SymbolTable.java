@@ -1,29 +1,22 @@
+import exceptions.SymbolAlreadyDefinedException;
+
 import java.util.HashMap;
 import java.util.Map;
-
 public class SymbolTable {
 
     private Map<String, SymbolInfo> table = new HashMap<>();
     private int nextAddress = 0;
 
-    public void addConst(String name, int value) {
+    public void addConst(String name, int value) throws SymbolAlreadyDefinedException {
         if(table.containsKey(name)) {
-            try {
                 throw new SymbolAlreadyDefinedException();
-            } catch (SymbolAlreadyDefinedException e) {
-                throw new RuntimeException(e);
-            }
         }
-        table.put(name, new SymbolInfo("const", value, nextAddress++));
+        table.put(name, new SymbolInfo("const", value));
     }
 
-    public void addVar(String name, int address) {
+    public void addVar(String name, int address) throws SymbolAlreadyDefinedException {
         if(table.containsKey(name)) {
-            try {
                 throw new SymbolAlreadyDefinedException();
-            } catch (SymbolAlreadyDefinedException e) {
-                throw new RuntimeException(e);
-            }
         }
         table.put(name, new SymbolInfo("var", address, nextAddress++));
     }
@@ -45,6 +38,12 @@ public class SymbolTable {
         return si.value;
     }
 
+    public boolean contains(String name) {
+
+        return table.containsKey(name);
+
+    }
+
   public void printTable() {
         for (String key : table.keySet()) {
                System.out.print(key);
@@ -57,13 +56,18 @@ public class SymbolTable {
 
 class SymbolInfo {
     String type;
-    int value;
+    int value = 0;
     int address;
 
     public SymbolInfo(String type, int value , int address) {
         this.type = type;
         this.value = value;
         this.address = address;
+    }
+
+    public SymbolInfo(String type, int value) {
+        this.type = type;
+        this.value = value;
     }
 
     public void print() {
