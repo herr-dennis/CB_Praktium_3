@@ -8,6 +8,7 @@ public class CodeErzeugung
     HashMap<String, Integer> opcodeMap;
     private int byteCount = 0; // Zählt die generierten Bytes
 
+
     public CodeErzeugung() {
         // Initialisiere die Opcode-Mapping-Tabelle
         opcodeMap = new HashMap<>();
@@ -26,6 +27,7 @@ public class CodeErzeugung
         opcodeMap.put("if_icmpgt", 0xa3); // >
         opcodeMap.put("if_icmple", 0xa4); // <=
         opcodeMap.put("goto", 0xa7); // <=
+        opcodeMap.put("return", 0xb1);
 
 
 
@@ -63,7 +65,6 @@ public class CodeErzeugung
 
     public void countBytes() {
         byteCount = 0;
-        boolean isfourByte = false;
 
         for (String line : Code) {
             String[] parts = line.trim().split("\\s+");  // Teile den Befehl in seine Bestandteile
@@ -71,18 +72,19 @@ public class CodeErzeugung
 
             if (opcodeMap.containsKey(mnemonic)) {
 
-                // Behandlung des Sprungbefehls (z. B. a3 für Sprünge)
-                if (mnemonic.equals("if_icmpge") || mnemonic.equals("if_icmple") || mnemonic.equals("if_icmpgt") || mnemonic.equals("if_icmplt")) {
+                byteCount++;
+
+                if (mnemonic.equals("if_icmpge") || mnemonic.equals("if_icmple") || mnemonic.equals("if_icmpgt") || mnemonic.equals("if_icmplt")||mnemonic.equals("goto")) {
+
                     // Wenn der Opcode nur ein Argument hat, muss der zweite Byte-Wert hinzugefügt werden
                     if (parts.length == 2) {
-
                         String[] parts_ = {parts[0], "00", parts[1]}; // Füge "00" als Platzhalter hinzu
                         parts = parts_; // Teile neu zuweise
                         byteCount++;
                     }
                 }
 
-                byteCount++;
+
 
                 for (int i = 1; i < parts.length; i++) {
                     try {

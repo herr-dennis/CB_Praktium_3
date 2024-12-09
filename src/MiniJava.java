@@ -16,8 +16,9 @@ public class MiniJava implements MiniJavaConstants {
     constDecl();
     varDecl();
     statement();
+                                      codeErzeugung.add("return");
     jj_consume_token(0);
-                                            codeErzeugung.print(); codeErzeugung.translateToOpcodes(); codeErzeugung.printByteCode(); System.out.println(codeErzeugung.getByteCount());
+                                                                            codeErzeugung.print(); codeErzeugung.translateToOpcodes(); codeErzeugung.printByteCode(); System.out.println(codeErzeugung.getByteCount());
   }
 
   static final public void constDecl() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
@@ -212,20 +213,25 @@ public class MiniJava implements MiniJavaConstants {
       break;
     case WHILE:
       jj_consume_token(WHILE);
-              int rücksprung_if = codeErzeugung.getByteCount();
+              int rücksprung_if = codeErzeugung.getByteCount(); System.out.println("Vor while" +rücksprung_if);
       condition();
       int bevor_Statement =codeErzeugung.getByteCount();
-      System.out.println(bevor_Statement);
+      System.out.println( "Bevor Statement:" + bevor_Statement);
       statement();
-      int statementByteCode = codeErzeugung.getByteCount();
-      statementByteCode =  statementByteCode-bevor_Statement ;
-        System.out.println("Das Statement: "+ statementByteCode);
+       int nach_Statement = codeErzeugung.getByteCount(); // Adresse nach Statement
+          int statementByteCode = nach_Statement - bevor_Statement; // Statement-Länge berechnen
+          System.out.println("Das Statement ist " + statementByteCode + " Byte lang.");
 
+          // Zieladresse für Bedingung setzen (if-Anweisung)
+          codeErzeugung.insertAddress(Integer.toString(statementByteCode + 4));
 
-     codeErzeugung.insertAddress(Integer.toString(statementByteCode+6));
-     int afterStatement = codeErzeugung.getByteCount();
-     int gotoStrung = afterStatement - rücksprung_if+1;
-      codeErzeugung.add("goto "+  -gotoStrung);
+          // Berechnung für goto-Sprung
+          int afterStatement = codeErzeugung.getByteCount(); // Adresse nach Statement
+          int gotoStrung = rücksprung_if - afterStatement - 3; // Rücksprung berechnen (-3 für Befehlslänge)
+          System.out.println("Goto-Sprung: " + gotoStrung);
+
+          // Generiere den Rücksprung
+          codeErzeugung.add("goto " + gotoStrung);
       break;
     default:
       jj_la1[8] = jj_gen;

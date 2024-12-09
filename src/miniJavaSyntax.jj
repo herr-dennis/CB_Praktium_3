@@ -36,7 +36,7 @@ void Empty () : {}
 
  void programm () throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist   :{}
 {
-  constDecl() varDecl() statement() <EOF> { codeErzeugung.print(); codeErzeugung.translateToOpcodes(); codeErzeugung.printByteCode(); System.out.println(codeErzeugung.getByteCount()); }
+  constDecl() varDecl() statement()  {codeErzeugung.add("return");} <EOF> { codeErzeugung.print(); codeErzeugung.translateToOpcodes(); codeErzeugung.printByteCode(); System.out.println(codeErzeugung.getByteCount()); }
 }
 
 void constDecl () throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist  :{}
@@ -143,22 +143,30 @@ void statement() throws ConstantModificationException , SymbolAlreadyDefinedExce
     |
     <IF> condition() statement() optElse()
     |
-    <WHILE>  {int rücksprung_if = codeErzeugung.getByteCount();}  condition()
+    <WHILE>  {int rücksprung_if = codeErzeugung.getByteCount(); System.out.println("Vor while" +rücksprung_if);  }
+
+    condition()
 
      {int bevor_Statement =codeErzeugung.getByteCount();
-      System.out.println(bevor_Statement);}
+      System.out.println( "Bevor Statement:" + bevor_Statement);}
 
      statement()
+     {
+       int nach_Statement = codeErzeugung.getByteCount(); // Adresse nach Statement
+          int statementByteCode = nach_Statement - bevor_Statement; // Statement-Länge berechnen
+          System.out.println("Das Statement ist " + statementByteCode + " Byte lang.");
 
-     {int statementByteCode = codeErzeugung.getByteCount();
-      statementByteCode =  statementByteCode-bevor_Statement ;
-        System.out.println("Das Statement: "+ statementByteCode);
+          // Zieladresse für Bedingung setzen (if-Anweisung)
+          codeErzeugung.insertAddress(Integer.toString(statementByteCode + 4));
 
+          // Berechnung für goto-Sprung
+          int afterStatement = codeErzeugung.getByteCount(); // Adresse nach Statement
+          int gotoStrung = rücksprung_if - afterStatement - 3; // Rücksprung berechnen (-3 für Befehlslänge)
+          System.out.println("Goto-Sprung: " + gotoStrung);
 
-     codeErzeugung.insertAddress(Integer.toString(statementByteCode+6));
-     int afterStatement = codeErzeugung.getByteCount();
-     int gotoStrung = afterStatement - rücksprung_if+1;
-      codeErzeugung.add("goto "+  -gotoStrung);}
+          // Generiere den Rücksprung
+          codeErzeugung.add("goto " + gotoStrung);
+    }
 
 }
 
