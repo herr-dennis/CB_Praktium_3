@@ -67,40 +67,51 @@ public class CodeErzeugung
         byteCount = 0;
 
         for (String line : Code) {
-            String[] parts = line.trim().split("\\s+");  // Teile den Befehl in seine Bestandteile
-            String mnemonic = parts[0];  // Der Befehl (z.B. bipush, iload, etc.)
+            String[] parts = line.trim().split("\\s+");
+            String mnemonic = parts[0];
 
             if (opcodeMap.containsKey(mnemonic)) {
 
                 byteCount++;
 
-                if (mnemonic.equals("if_icmpge") || mnemonic.equals("if_icmple") || mnemonic.equals("if_icmpgt") || mnemonic.equals("if_icmplt")||mnemonic.equals("goto")) {
+                switch (mnemonic) {
+                    case "bipush": // 1 Byte-Argument
+                        byteCount += 1;
+                        break;
 
-                    // Wenn der Opcode nur ein Argument hat, muss der zweite Byte-Wert hinzugefügt werden
-                    if (parts.length == 2) {
-                        String[] parts_ = {parts[0], "00", parts[1]}; // Füge "00" als Platzhalter hinzu
-                        parts = parts_; // Teile neu zuweise
-                        byteCount++;
-                    }
-                }
+                    case "sipush": // 2 Byte-Argument
+                        byteCount += 2;
+                        break;
 
+                    case "if_icmpge":
+                    case "if_icmple":
+                    case "if_icmpgt":
+                    case "if_icmplt":
+                    case "goto":
 
+                        byteCount += 2;
+                        break;
 
-                for (int i = 1; i < parts.length; i++) {
-                    try {
-                        Integer.parseInt(parts[i]);
-                        byteCount++;
-                    } catch (NumberFormatException e) {
-                        // Falls das Argument kein Integer ist, werfe eine Ausnahme
-                        throw new IllegalArgumentException("Ungültiges Argument: " + parts[i]);
-                    }
+                    default:
+                        // Andere Befehle (z. B. iload, istore)
+                        for (int i = 1; i < parts.length; i++) {
+                            try {
+                                Integer.parseInt(parts[i]);
+                                // Für jedes Argument fügen wir ein Byte hinzu
+                                byteCount++;
+                            } catch (NumberFormatException e) {
+                                throw new IllegalArgumentException("Ungültiges Argument: " + parts[i]);
+                            }
+                        }
+                        break;
                 }
             } else {
-                // Wenn der Befehl nicht bekannt ist, werfe eine Ausnahme
+
                 throw new IllegalArgumentException("Ungültiger Befehl: " + mnemonic);
             }
         }
     }
+
 
     public void translateToOpcodes() {
 

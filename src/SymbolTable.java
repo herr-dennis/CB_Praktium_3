@@ -5,7 +5,7 @@ import java.util.Map;
 public class SymbolTable {
 
     private Map<String, SymbolInfo> table = new HashMap<>();
-    private int nextAddress = 0;
+    private int nextAddress = 1;
 
     public void addConst(String name, int value) throws SymbolAlreadyDefinedException {
         if(table.containsKey(name)) {

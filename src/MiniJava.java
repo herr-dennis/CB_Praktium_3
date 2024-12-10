@@ -200,38 +200,38 @@ public class MiniJava implements MiniJavaConstants {
       jj_consume_token(KLAMMERZU);
       jj_consume_token(21);
       break;
+    case IF:
+      jj_consume_token(IF);
+      int vor_condition_if = codeErzeugung.getByteCount();
+      condition();
+       int nach_condition_if =codeErzeugung.getByteCount()-2;
+      statement();
+      int nach_state_if = codeErzeugung.getByteCount();
+     int if_anweisung_if = (nach_state_if) - (nach_condition_if-1);
+      codeErzeugung.insertAddress(Integer.toString(if_anweisung_if));
+      optElse();
+      break;
     case 24:
       jj_consume_token(24);
       stmtLIST();
       jj_consume_token(25);
       break;
-    case IF:
-      jj_consume_token(IF);
-      condition();
-      statement();
-      optElse();
-      break;
     case WHILE:
       jj_consume_token(WHILE);
-              int rücksprung_if = codeErzeugung.getByteCount(); System.out.println("Vor while" +rücksprung_if);
+            int vor_condition = codeErzeugung.getByteCount();
       condition();
-      int bevor_Statement =codeErzeugung.getByteCount();
-      System.out.println( "Bevor Statement:" + bevor_Statement);
+        int nach_condition =codeErzeugung.getByteCount()-2;
+        System.out.println( "Nach Condition/if-Opcode:" +  nach_condition);
       statement();
-       int nach_Statement = codeErzeugung.getByteCount(); // Adresse nach Statement
-          int statementByteCode = nach_Statement - bevor_Statement; // Statement-Länge berechnen
-          System.out.println("Das Statement ist " + statementByteCode + " Byte lang.");
-
-          // Zieladresse für Bedingung setzen (if-Anweisung)
-          codeErzeugung.insertAddress(Integer.toString(statementByteCode + 4));
-
-          // Berechnung für goto-Sprung
-          int afterStatement = codeErzeugung.getByteCount(); // Adresse nach Statement
-          int gotoStrung = rücksprung_if - afterStatement - 3; // Rücksprung berechnen (-3 für Befehlslänge)
-          System.out.println("Goto-Sprung: " + gotoStrung);
-
-          // Generiere den Rücksprung
-          codeErzeugung.add("goto " + gotoStrung);
+            int nach_Statement = codeErzeugung.getByteCount();
+            // Berechnung für goto-Sprung
+            int gotoStrung = vor_condition - nach_Statement ;
+            codeErzeugung.add("goto " +gotoStrung);
+            int nach_goto = codeErzeugung.getByteCount();
+            //if sprung
+            int if_anweisung = (nach_goto) - (nach_condition-1);
+             // Zieladresse für Bedingung setzen (if-Anweisung)
+            codeErzeugung.insertAddress(Integer.toString(if_anweisung));
       break;
     default:
       jj_la1[8] = jj_gen;
