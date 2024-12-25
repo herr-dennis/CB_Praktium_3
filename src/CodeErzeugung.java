@@ -28,6 +28,7 @@ public class CodeErzeugung
         opcodeMap.put("if_icmple", 0xa4); // <=
         opcodeMap.put("goto", 0xa7); // <=
         opcodeMap.put("return", 0xb1);
+        opcodeMap.put("print", 0xb8);
 
 
 

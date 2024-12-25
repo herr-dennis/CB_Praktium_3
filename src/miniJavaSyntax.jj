@@ -137,7 +137,7 @@ void statement() throws ConstantModificationException , SymbolAlreadyDefinedExce
         codeErzeugung.add("istore " + table.getAddress(ide));
     }
     |
-    <PRINT> <KLAMMERAUF> expression() <KLAMMERZU> ";"
+    <PRINT> <KLAMMERAUF> expression() {codeErzeugung.add("print 00 23");}  <KLAMMERZU> ";"
 
     |
     <IF>
@@ -149,9 +149,10 @@ void statement() throws ConstantModificationException , SymbolAlreadyDefinedExce
 
      {int nach_state_if = codeErzeugung.getByteCount();
      int if_anweisung_if = (nach_state_if) - (nach_condition_if-1);
-      codeErzeugung.insertAddress(Integer.toString(if_anweisung_if));}
+      codeErzeugung.insertAddress(Integer.toString(if_anweisung_if));
+      //codeErzeugung.add("goto " +gotoStrung);
+      }
     optElse()
-
 
 
      |
@@ -189,7 +190,14 @@ Empty()
 
 void optElse() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist : {}
 {
- <ELSE> statement() |
+ <ELSE>
+ {int bevor_else = codeErzeugung.getByteCount();}
+ statement()
+ {int else_state = codeErzeugung.getByteCount()-bevor_else;
+    //codeErzeugung.insertAdress("goto else_state");
+                                                          }
+ |
+
  Empty()
 }
 

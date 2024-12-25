@@ -197,6 +197,7 @@ public class MiniJava implements MiniJavaConstants {
       jj_consume_token(PRINT);
       jj_consume_token(KLAMMERAUF);
       expression();
+                                       codeErzeugung.add("print 00 23");
       jj_consume_token(KLAMMERZU);
       jj_consume_token(21);
       break;
