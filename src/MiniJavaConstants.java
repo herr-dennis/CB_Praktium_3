@@ -21,25 +21,31 @@ public interface MiniJavaConstants {
   /** RegularExpression Id. */
   int PRINT = 10;
   /** RegularExpression Id. */
-  int NUMBER = 11;
+  int VOID = 11;
   /** RegularExpression Id. */
-  int DIGIT = 12;
+  int FUNC = 12;
   /** RegularExpression Id. */
-  int KLAMMERAUF = 13;
+  int RETURN = 13;
   /** RegularExpression Id. */
-  int KLAMMERZU = 14;
+  int NUMBER = 14;
   /** RegularExpression Id. */
-  int PLUS = 15;
+  int DIGIT = 15;
   /** RegularExpression Id. */
-  int MINUS = 16;
+  int KLAMMERAUF = 16;
   /** RegularExpression Id. */
-  int MAL = 17;
+  int KLAMMERZU = 17;
   /** RegularExpression Id. */
-  int DIV = 18;
+  int PLUS = 18;
   /** RegularExpression Id. */
-  int ComOp = 19;
+  int MINUS = 19;
   /** RegularExpression Id. */
-  int IDENT = 20;
+  int MAL = 20;
+  /** RegularExpression Id. */
+  int DIV = 21;
+  /** RegularExpression Id. */
+  int ComOp = 22;
+  /** RegularExpression Id. */
+  int IDENT = 23;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -57,6 +63,9 @@ public interface MiniJavaConstants {
     "\"if\"",
     "\"else\"",
     "\"print\"",
+    "\"void\"",
+    "\"func\"",
+    "\"return\"",
     "<NUMBER>",
     "<DIGIT>",
     "\"(\"",

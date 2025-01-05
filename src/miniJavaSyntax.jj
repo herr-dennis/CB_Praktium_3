@@ -4,11 +4,14 @@ import exceptions.ConstantModificationException;
 import exceptions.SymbolNotDeclaredException;
 import exceptions.SymbolDoesNotExist;
 import exceptions.SymbolAlreadyDefinedException;
+import exceptions.RwertException;
+import exceptions.WrongParametersException;import java.util.ArrayList;
 
 public class MiniJava {
     static SymbolTable table = new SymbolTable();
     static CodeErzeugung codeErzeugung = new  CodeErzeugung();
-
+    static TableHandler tableHandler = new TableHandler();
+    static ConstantPool constantPool = new ConstantPool();
 
 }
 
@@ -21,6 +24,9 @@ TOKEN : { < WHILE : "while" > }
 TOKEN : { < IF : "if" > }
 TOKEN : { < ELSE : "else" > }
 TOKEN : { < PRINT : "print" > }
+TOKEN : { <VOID : "void">}
+TOKEN : { <FUNC : "func">}
+TOKEN : { <RETURN : "return">}
 TOKEN : { < NUMBER : ( <DIGIT> )+ > }
 TOKEN : { < DIGIT : [ "0"-"9" ] > }
 TOKEN : { < KLAMMERAUF : "(" > }
@@ -34,111 +40,229 @@ TOKEN : {< IDENT : ["a"-"z"] (["a"-"z" , "A"-"z"])*>}
 void Empty () : {}
 { {}}
 
- void programm () throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist   :{}
+ void programm () throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist ,WrongParametersException  ,RwertException:{}
 {
-  constDecl() varDecl() statement()  {codeErzeugung.add("return");} <EOF> { codeErzeugung.print(); codeErzeugung.translateToOpcodes(); codeErzeugung.printByteCode(); System.out.println(codeErzeugung.getByteCount()); }
+   constDecl() varDeclGlobal()  (procedure())*  (function())*
+   statement()
+  {codeErzeugung.add("return");
+
+int jumpToMain = table.getBytesAllMethods()+2;
+codeErzeugung.setJumpOverMethod("goto " +Integer.toString(jumpToMain) );
+}
+  <EOF> { codeErzeugung.print(); codeErzeugung.translateToOpcodes(); codeErzeugung.printByteCode(); System.out.println(codeErzeugung.getByteCount());
+  }
 }
 
-void constDecl () throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist  :{}
+void constDecl () throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist ,WrongParametersException ,RwertException:{}
 {
    <FINAL> <INT> constZuw() constList() ";" |
    Empty()
 }
 
-void constZuw()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}
+void constZuw()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException ,RwertException:{}
 {
-  <IDENT> {String ide = token.image;}
-  "="
-  <NUMBER> {table.addConst(ide, Integer.parseInt( token.image));}
+  <IDENT> { String ide = token.image; }
+      "="
+      <NUMBER>
+      {
+          int value = Integer.parseInt(token.image);
+          // Prüfen, ob eine lokale Tabelle existiert
+          SymbolTable currentTable = tableHandler.currentTable();
+          if (currentTable != null) {
+              currentTable.addConst(ide, value); // In lokale Tabelle eintragen
+          } else {
+              constantPool.addGlobalVariable(ide);
+              table.addConst(ide, value); // In globale Tabelle eintragen
+          }
+      }
 }
 
-void constList ()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}
+void constList ()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException ,RwertException:{}
 {
   "," constZuw() constList() |
   Empty()
 }
 
-void varDecl() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist : {}
+void varDeclGlobal() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException ,RwertException: {}
 {
-  <INT> <IDENT> { String ide = token.image; } varZuw(ide) varList() ";" |
+  <INT> <IDENT> { String ide = token.image; } varZuwGlobal(ide) varListGlobal() ";" |
   Empty()
 }
 
-void varZuw(String ide) throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist : {}
+void varZuwGlobal(String ide) throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist ,WrongParametersException,RwertException: {}
 {
-  "=" <NUMBER> { table.addVar(ide, Integer.parseInt(token.image));  codeErzeugung.add("bipush "+table.getValue(ide)); codeErzeugung.add("istore "+table.getAddress(ide));} |
+  "=" <NUMBER> { table.addVar(ide, Integer.parseInt(token.image));  String index =  constantPool.addGlobalVariable(ide); codeErzeugung.add("bipush "+table.getValue(ide)); codeErzeugung.add("putstatic "+"[g"+ide+"]" );} |
   Empty()
 }
 
-void varList() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist : {}
+void varListGlobal() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException,RwertException : {}
 {
-  "," <IDENT> { String ide = token.image; } varZuw(ide) varList() |
+  "," <IDENT> { String ide = token.image; } varZuwGlobal(ide) varListGlobal() |
   Empty()
 }
 
-void expression()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}
+
+void varDeclLocal() throws ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist,WrongParametersException ,RwertException: {}
+{
+    <INT> <IDENT> {
+        String ide = token.image;}
+    varZuwLocal(ide) varListLocal() ";" |
+    Empty()
+}
+
+void varZuwLocal(String ide) throws ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist ,WrongParametersException,RwertException: {}
+{
+    "=" <NUMBER> {
+        SymbolTable localTable = tableHandler.currentTable();
+        String methodName = localTable.getCurrentMethodName();
+        int anzahlPara = table.getParameterFromMethodPara(methodName);
+        localTable.setAddress(anzahlPara);
+        localTable.addLocalVar(ide, Integer.parseInt(token.image));
+        table.addCodeToMethod(methodName,"bipush " + localTable.getValue(ide) );
+        table.addCodeToMethod(methodName,"istore " + localTable.getAddress(ide) );
+    } |
+    Empty()
+}
+
+void varListLocal() throws ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist ,WrongParametersException,RwertException: {}
+{
+    "," <IDENT> {
+        String ide = token.image;
+
+    }
+    varZuwLocal(ide) varListLocal() |
+    Empty()
+}
+
+
+void expression()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist ,WrongParametersException,RwertException:{}
 {
    term() summe()
 }
 
-void term()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}
+void term()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException,RwertException :{}
 {
  faktor() produkt()
 }
 
-void summe()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}{
+void summe()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException ,RwertException:{}{
  <PLUS>  term(){codeErzeugung.add("iadd");}  summe()  |
  <MINUS> term()  {codeErzeugung.add("isub");} summe() |
  Empty()
 }
 
-void produkt()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist :{}
+void produkt()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist ,WrongParametersException,RwertException:{}
 {
  <MAL> faktor()  {codeErzeugung.add("imul");} produkt() |
  <DIV> faktor()  {codeErzeugung.add("idiv");} produkt() |
  Empty()
 }
 
-void faktor()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist:{}
+void faktor()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException ,RwertException ,RwertException:{}
 {
-  <NUMBER>    {codeErzeugung.add("bipush " + token.image);}    |
+  <NUMBER>    { if(!tableHandler.localTableExists())
+               codeErzeugung.add("bipush " + token.image);
+               else {
+                   SymbolTable localTable = tableHandler.currentTable();
+                   String currentMethod = localTable.getCurrentMethodName(); // Aktuelle Methode bestimmen
+                   localTable.addCodeToMethod(currentMethod,"bipush "+token.image);
+               }
+
+               }
+
+
+            |
   <IDENT>
+   {
+   SymbolTable localTable_ = tableHandler.currentTable();
+
+
+       boolean inLocalTable = (localTable_ != null && localTable_.contains(token.image));
+       boolean inGlobalTable = table.contains(token.image);
+       boolean isMethod = table.containsMethod(token.image);
+
+       if (!inLocalTable && !inGlobalTable && !isMethod) {
+           throw new RwertException("Bezeichner '" + token.image + "' ist nicht definiert.");
+       }
+  String ide = token.image;} (functionCall(token.image) | Empty())
      {
-      if (!table.contains(token.image)) {
-         throw new SymbolNotDeclaredException();
-     }
-     if (table.getTyp(token.image).equals("var")) {
-         codeErzeugung.add("iload " + table.getAddress(token.image));
-     } else {
-         codeErzeugung.add("bipush " + table.getValue(token.image));
-     }
+             if(tableHandler.localTableExists()||table.contains(token.image)){
+             //Prüfe ob es keine LocaleSymbolTabelle gibt
+             if (!tableHandler.localTableExists()) {
+                 // Variable global -> Prüfe globale Tabelle
+                 if (!table.contains(token.image)) {
+                     throw new SymbolNotDeclaredException();
+                 }
+                 if(table.getTyp(token.image).equals("const")){
+                  codeErzeugung.add("bipush " + table.getValue(token.image));
+                 }else{
+                     codeErzeugung.add("getstatic " +"[g"+ide+"]");
+                 }
+             //Else-Fall, es gibt eine LocaleTabelle!
+             } else {
+                 // Lokale Tabelle -> Prüfe zuerst lokale, dann globale Tabelle
+                 System.out.println("HIER NICHT2");
+                 SymbolTable localTable = tableHandler.currentTable();
+                 String methodeName = localTable.getCurrentMethodName();
+                 if (localTable.contains(token.image)) {
+                      if(localTable.getTyp(token.image).equals("const")){
+                          table.addCodeToMethod ( methodeName, "bipush " + localTable.getValue(token.image));}
+                      else{
+                          table.addCodeToMethod ( methodeName, "iload " + localTable.getAddress(token.image));}
 
+                 } else if (table.contains(token.image)) {
+                     // Fallback auf globale Tabelle
+                      if(table.getTyp(token.image).equals("const")){
+                          codeErzeugung.add("bipush " + table.getValue(token.image));}
+                      else{
 
-}
-
-
-
+                          codeErzeugung.add("iload " + table.getAddress(token.image));}
+                 } else {
+                     throw new SymbolNotDeclaredException();
+                 }
+             }
+         }}
   |
   <KLAMMERAUF> expression() <KLAMMERZU>
 }
 
-void statement() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist : {}
+void statement() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException ,RwertException: {}
 {
-
     <IDENT>
-     {
+    {
         String ide = token.image;
-        if (table.getTyp(ide).equals("const")) {
+        if (table.getTyp(ide)!=null && table.getTyp(ide).equals("const")) {
             throw new ConstantModificationException();
         }
     }
-    "=" expression() ";"
-    {
-        codeErzeugung.add("istore " + table.getAddress(ide));
-    }
-    |
-    <PRINT> <KLAMMERAUF> expression() {codeErzeugung.add("print 00 23");}  <KLAMMERZU> ";"
+    (
+        "=" expression() {
 
+         if (!tableHandler.localTableExists()){
+             codeErzeugung.add("getstatic " +"[g"+ide+"]");
+         }
+         else{
+             SymbolTable localTable = tableHandler.currentTable();
+             String methodeName = localTable.getCurrentMethodName();
+             table.addCodeToMethod(methodeName,"istore " +table.getAddress(ide));
+
+         }
+       }
+        | procCall(ide)) ";"
+
+    |
+    <PRINT> <KLAMMERAUF> expression() {
+
+      if (!tableHandler.localTableExists()){
+          codeErzeugung.add("print 00 23");
+      }
+      else {
+           SymbolTable localTable = tableHandler.currentTable();
+           String methodeName = localTable.getCurrentMethodName();
+           table.addCodeToMethod(methodeName,"print 00 23") ;
+      }
+
+      } <KLAMMERZU> ";"
     |
     <IF>
 
@@ -153,19 +277,15 @@ void statement() throws ConstantModificationException , SymbolAlreadyDefinedExce
       //codeErzeugung.add("goto " +gotoStrung);
       }
     optElse()
-
-
      |
     "{" stmtLIST() "}"
-
 
     |
   <WHILE>  {int vor_condition = codeErzeugung.getByteCount();}
 
       condition()
 
-       {int nach_condition =codeErzeugung.getByteCount()-2;
-        System.out.println( "Nach Condition/if-Opcode:" +  nach_condition);}
+       {int nach_condition =codeErzeugung.getByteCount()-2;}
 
        statement()
        {
@@ -182,13 +302,13 @@ void statement() throws ConstantModificationException , SymbolAlreadyDefinedExce
   }
 
 
-void stmtLIST() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist: {}
+void stmtLIST() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException,RwertException: {}
 {
 statement() stmtLIST() |
 Empty()
 }
 
-void optElse() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist : {}
+void optElse() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist ,WrongParametersException,RwertException: {}
 {
  <ELSE>
  {int bevor_else = codeErzeugung.getByteCount();}
@@ -201,46 +321,138 @@ void optElse() throws ConstantModificationException , SymbolAlreadyDefinedExcept
  Empty()
 }
 
-void condition() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist:{}
+void condition() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException,RwertException:{}
 {
 expression() <ComOp> {String compOp =token.image;} expression()
 {
- switch (compOp) {
-         case "<":
-             codeErzeugung.add("if_icmpge -1"); // Umgekehrter Vergleich für "<"
-             break;
-         case "<=":
-             codeErzeugung.add("if_icmpgt -1"); // Umgekehrter Vergleich für "<="
-             break;
-         case ">":
-             codeErzeugung.add("if_icmple -1"); // Umgekehrter Vergleich für ">"
-             break;
-         case ">=":
-             codeErzeugung.add("if_icmplt -1 "); // Umgekehrter Vergleich für ">="
-             break;
-         case "==":
-             codeErzeugung.add("if_icmpne -1" ); // Umgekehrter Vergleich für "=="
-             break;
-         case "!=":
-             codeErzeugung.add("if_icmpeq -1"); // Umgekehrter Vergleich für "!="
-             break;
-         default:
-     }
+    boolean existsLocalTable = false;
+    SymbolTable localTable = null;
+    String methodeName = null;
 
+    // Überprüfen, ob eine lokale Tabelle existiert
+    if (tableHandler.localTableExists()) {
+        existsLocalTable = true;
+        localTable = tableHandler.currentTable();
+        methodeName = localTable.getCurrentMethodName();
+    }
 
+    // Switch-Fallunterscheidung für Vergleichsoperatoren
+    switch (compOp) {
+        case "<":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmpge -1");
+            } else {
+                codeErzeugung.add("if_icmpge -1"); // Für globale Tabelle
+            }
+            break;
+        case "<=":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmpgt -1");
+            } else {
+                codeErzeugung.add("if_icmpgt -1");
+            }
+            break;
+        case ">":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmple -1");
+            } else {
+                codeErzeugung.add("if_icmple -1");
+            }
+            break;
+        case ">=":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmplt -1");
+            } else {
+                codeErzeugung.add("if_icmplt -1");
+            }
+            break;
+        case "==":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmpne -1");
+            } else {
+                codeErzeugung.add("if_icmpne -1");
+            }
+            break;
+        case "!=":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmpeq -1");
+            } else {
+                codeErzeugung.add("if_icmpeq -1");
+            }
+            break;
+        default:
+            throw new IllegalArgumentException("Ungültiger Vergleichsoperator: " + compOp);
+    }
 
+    }
+}
+
+void procedure() throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException,RwertException:{}
+{
+
+<VOID> <IDENT> {String ide = token.image; tableHandler.createTable(ide); table.addMethod(ide, "void");} <KLAMMERAUF>  ( routinenParameter(ide)|Empty() ) <KLAMMERZU>
+     "{" (routinenBlock() | Empty() )"}"
+     {table.addCodeToMethod(ide, "return");
+      constantPool.addMethod(ide,"void", table.getParameterFromMethodPara(ide));
+      ArrayList<String> methodCode = table.getByteCodeForMethod(ide);
+      codeErzeugung.insertMethodCode(methodCode);
+      tableHandler.removeCurrentTable();}
+}
+
+void function () throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException,RwertException:{}
+{
+
+<FUNC> <IDENT> { String ide = token.image; tableHandler.createTable(ide); table.addMethod(ide, "func");}<KLAMMERAUF> (routinenParameter(ide)| Empty()) <KLAMMERZU>
+"{" (routinenBlock() | Empty() )  <RETURN>  expression() ";" "}"
+{
+table.addCodeToMethod(ide, "ireturn");
+constantPool.addMethod(ide,"int", table.getParameterFromMethodPara(ide));
+
+ArrayList<String> methodCode = table.getByteCodeForMethod(ide);
+codeErzeugung.insertMethodCode(methodCode);
+tableHandler.removeCurrentTable();}
 
 }
 
+void routinenParameter(String ide)throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException,RwertException:{}
+{
+{SymbolTable symbolTable = tableHandler.currentTable(); int para = 0;}
+<INT>  <IDENT>   {para = para +1;} (("," <INT> <IDENT> {  para = para +1;})* | Empty() )
+{ table.addMethodPara(ide, para);}
+}
 
+void routinenBlock()throws ConstantModificationException , SymbolAlreadyDefinedException , SymbolNotDeclaredException , SymbolDoesNotExist,WrongParametersException,RwertException:{}
+{
+     (constDecl()|Empty()) (varDeclLocal() |Empty())  statement()
+}
 
+void functionCall(String ide) throws ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist ,WrongParametersException,RwertException: {}
+{
+    {int anzahlPara = 0;}
+    <KLAMMERAUF>
+    (expression() {anzahlPara++;} ("," expression(){anzahlPara++;})* | Empty())
+    <KLAMMERZU>varDeclLocal()
+    {int methodPara = table.getActuallyMethodPara(ide);
+    if(methodPara!=anzahlPara){
+      throw new WrongParametersException();
+    }
 
+    codeErzeugung.add("invokestatic "+ 11);
+    }
+}
 
-
-
-
-
-
+void procCall(String ide) throws ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist ,WrongParametersException,RwertException: {}
+{
+    {int anzahlPara = 0;}
+        <KLAMMERAUF>
+        (expression() {anzahlPara++;} ("," expression(){anzahlPara++;})* | Empty())
+        <KLAMMERZU>varDeclLocal()
+        {int methodPara = table.getActuallyMethodPara(ide);
+        if(methodPara!=anzahlPara){
+          throw new WrongParametersException();
+        }
+        codeErzeugung.add("invokestatic "+ 11);
+        }
 }
 
 

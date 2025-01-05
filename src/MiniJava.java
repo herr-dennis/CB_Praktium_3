@@ -3,69 +3,63 @@ import exceptions.ConstantModificationException;
 import exceptions.SymbolNotDeclaredException;
 import exceptions.SymbolDoesNotExist;
 import exceptions.SymbolAlreadyDefinedException;
+import exceptions.RwertException;
+import exceptions.WrongParametersException;import java.util.ArrayList;
 
 public class MiniJava implements MiniJavaConstants {
     static SymbolTable table = new SymbolTable();
     static CodeErzeugung codeErzeugung = new  CodeErzeugung();
+    static TableHandler tableHandler = new TableHandler();
+    static ConstantPool constantPool = new ConstantPool();
 
   static final public void Empty() throws ParseException {
 
   }
 
-  static final public void programm() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void programm() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     constDecl();
-    varDecl();
+    varDeclGlobal();
+    label_1:
+    while (true) {
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case VOID:
+        ;
+        break;
+      default:
+        jj_la1[0] = jj_gen;
+        break label_1;
+      }
+      procedure();
+    }
+    label_2:
+    while (true) {
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case FUNC:
+        ;
+        break;
+      default:
+        jj_la1[1] = jj_gen;
+        break label_2;
+      }
+      function();
+    }
     statement();
-                                      codeErzeugung.add("return");
+   codeErzeugung.add("return");
+
+int jumpToMain = table.getBytesAllMethods()+2;
+codeErzeugung.setJumpOverMethod("goto " +Integer.toString(jumpToMain) );
     jj_consume_token(0);
-                                                                            codeErzeugung.print(); codeErzeugung.translateToOpcodes(); codeErzeugung.printByteCode(); System.out.println(codeErzeugung.getByteCount());
+          codeErzeugung.print(); codeErzeugung.translateToOpcodes(); codeErzeugung.printByteCode(); System.out.println(codeErzeugung.getByteCount());
   }
 
-  static final public void constDecl() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void constDecl() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
     case FINAL:
       jj_consume_token(FINAL);
       jj_consume_token(INT);
       constZuw();
       constList();
-      jj_consume_token(21);
-      break;
-    default:
-      jj_la1[0] = jj_gen;
-      Empty();
-    }
-  }
-
-  static final public void constZuw() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
-    jj_consume_token(IDENT);
-           String ide = token.image;
-    jj_consume_token(22);
-    jj_consume_token(NUMBER);
-            table.addConst(ide, Integer.parseInt( token.image));
-  }
-
-  static final public void constList() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
-    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-    case 23:
-      jj_consume_token(23);
-      constZuw();
-      constList();
-      break;
-    default:
-      jj_la1[1] = jj_gen;
-      Empty();
-    }
-  }
-
-  static final public void varDecl() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
-    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-    case INT:
-      jj_consume_token(INT);
-      jj_consume_token(IDENT);
-                  String ide = token.image;
-      varZuw(ide);
-      varList();
-      jj_consume_token(21);
+      jj_consume_token(24);
       break;
     default:
       jj_la1[2] = jj_gen;
@@ -73,12 +67,28 @@ public class MiniJava implements MiniJavaConstants {
     }
   }
 
-  static final public void varZuw(String ide) throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void constZuw() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+    jj_consume_token(IDENT);
+            String ide = token.image;
+    jj_consume_token(25);
+    jj_consume_token(NUMBER);
+          int value = Integer.parseInt(token.image);
+          // Prüfen, ob eine lokale Tabelle existiert
+          SymbolTable currentTable = tableHandler.currentTable();
+          if (currentTable != null) {
+              currentTable.addConst(ide, value); // In lokale Tabelle eintragen
+          } else {
+              constantPool.addGlobalVariable(ide);
+              table.addConst(ide, value); // In globale Tabelle eintragen
+          }
+  }
+
+  static final public void constList() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-    case 22:
-      jj_consume_token(22);
-      jj_consume_token(NUMBER);
-                 table.addVar(ide, Integer.parseInt(token.image));  codeErzeugung.add("bipush "+table.getValue(ide)); codeErzeugung.add("istore "+table.getAddress(ide));
+    case 26:
+      jj_consume_token(26);
+      constZuw();
+      constList();
       break;
     default:
       jj_la1[3] = jj_gen;
@@ -86,14 +96,15 @@ public class MiniJava implements MiniJavaConstants {
     }
   }
 
-  static final public void varList() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void varDeclGlobal() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-    case 23:
-      jj_consume_token(23);
+    case INT:
+      jj_consume_token(INT);
       jj_consume_token(IDENT);
-                String ide = token.image;
-      varZuw(ide);
-      varList();
+                  String ide = token.image;
+      varZuwGlobal(ide);
+      varListGlobal();
+      jj_consume_token(24);
       break;
     default:
       jj_la1[4] = jj_gen;
@@ -101,17 +112,95 @@ public class MiniJava implements MiniJavaConstants {
     }
   }
 
-  static final public void expression() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void varZuwGlobal(String ide) throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case 25:
+      jj_consume_token(25);
+      jj_consume_token(NUMBER);
+                 table.addVar(ide, Integer.parseInt(token.image));  String index =  constantPool.addGlobalVariable(ide); codeErzeugung.add("bipush "+table.getValue(ide)); codeErzeugung.add("putstatic "+"[g"+ide+"]" );
+      break;
+    default:
+      jj_la1[5] = jj_gen;
+      Empty();
+    }
+  }
+
+  static final public void varListGlobal() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case 26:
+      jj_consume_token(26);
+      jj_consume_token(IDENT);
+                String ide = token.image;
+      varZuwGlobal(ide);
+      varListGlobal();
+      break;
+    default:
+      jj_la1[6] = jj_gen;
+      Empty();
+    }
+  }
+
+  static final public void varDeclLocal() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case INT:
+      jj_consume_token(INT);
+      jj_consume_token(IDENT);
+        String ide = token.image;
+      varZuwLocal(ide);
+      varListLocal();
+      jj_consume_token(24);
+      break;
+    default:
+      jj_la1[7] = jj_gen;
+      Empty();
+    }
+  }
+
+  static final public void varZuwLocal(String ide) throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case 25:
+      jj_consume_token(25);
+      jj_consume_token(NUMBER);
+        SymbolTable localTable = tableHandler.currentTable();
+        String methodName = localTable.getCurrentMethodName();
+        int anzahlPara = table.getParameterFromMethodPara(methodName);
+        localTable.setAddress(anzahlPara);
+        localTable.addLocalVar(ide, Integer.parseInt(token.image));
+        table.addCodeToMethod(methodName,"bipush " + localTable.getValue(ide) );
+        table.addCodeToMethod(methodName,"istore " + localTable.getAddress(ide) );
+      break;
+    default:
+      jj_la1[8] = jj_gen;
+      Empty();
+    }
+  }
+
+  static final public void varListLocal() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case 26:
+      jj_consume_token(26);
+      jj_consume_token(IDENT);
+        String ide = token.image;
+      varZuwLocal(ide);
+      varListLocal();
+      break;
+    default:
+      jj_la1[9] = jj_gen;
+      Empty();
+    }
+  }
+
+  static final public void expression() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     term();
     summe();
   }
 
-  static final public void term() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void term() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     faktor();
     produkt();
   }
 
-  static final public void summe() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void summe() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
     case PLUS:
       jj_consume_token(PLUS);
@@ -126,12 +215,12 @@ public class MiniJava implements MiniJavaConstants {
       summe();
       break;
     default:
-      jj_la1[5] = jj_gen;
+      jj_la1[10] = jj_gen;
       Empty();
     }
   }
 
-  static final public void produkt() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void produkt() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
     case MAL:
       jj_consume_token(MAL);
@@ -146,27 +235,80 @@ public class MiniJava implements MiniJavaConstants {
       produkt();
       break;
     default:
-      jj_la1[6] = jj_gen;
+      jj_la1[11] = jj_gen;
       Empty();
     }
   }
 
-  static final public void faktor() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void faktor() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException, RwertException {
     switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
     case NUMBER:
       jj_consume_token(NUMBER);
+                if(!tableHandler.localTableExists())
                codeErzeugung.add("bipush " + token.image);
+               else {
+                   SymbolTable localTable = tableHandler.currentTable();
+                   String currentMethod = localTable.getCurrentMethodName(); // Aktuelle Methode bestimmen
+                   localTable.addCodeToMethod(currentMethod,"bipush "+token.image);
+               }
       break;
     case IDENT:
       jj_consume_token(IDENT);
-      if (!table.contains(token.image)) {
-         {if (true) throw new SymbolNotDeclaredException();}
-     }
-     if (table.getTyp(token.image).equals("var")) {
-         codeErzeugung.add("iload " + table.getAddress(token.image));
-     } else {
-         codeErzeugung.add("bipush " + table.getValue(token.image));
-     }
+   SymbolTable localTable_ = tableHandler.currentTable();
+
+
+       boolean inLocalTable = (localTable_ != null && localTable_.contains(token.image));
+       boolean inGlobalTable = table.contains(token.image);
+       boolean isMethod = table.containsMethod(token.image);
+
+       if (!inLocalTable && !inGlobalTable && !isMethod) {
+           {if (true) throw new RwertException("Bezeichner '" + token.image + "' ist nicht definiert.");}
+       }
+  String ide = token.image;
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case KLAMMERAUF:
+        functionCall(token.image);
+        break;
+      default:
+        jj_la1[12] = jj_gen;
+        Empty();
+      }
+             if(tableHandler.localTableExists()||table.contains(token.image)){
+             //Prüfe ob es keine LocaleSymbolTabelle gibt
+             if (!tableHandler.localTableExists()) {
+                 // Variable global -> Prüfe globale Tabelle
+                 if (!table.contains(token.image)) {
+                     {if (true) throw new SymbolNotDeclaredException();}
+                 }
+                 if(table.getTyp(token.image).equals("const")){
+                  codeErzeugung.add("bipush " + table.getValue(token.image));
+                 }else{
+                     codeErzeugung.add("getstatic " +"[g"+ide+"]");
+                 }
+             //Else-Fall, es gibt eine LocaleTabelle!
+             } else {
+                 // Lokale Tabelle -> Prüfe zuerst lokale, dann globale Tabelle
+                 System.out.println("HIER NICHT2");
+                 SymbolTable localTable = tableHandler.currentTable();
+                 String methodeName = localTable.getCurrentMethodName();
+                 if (localTable.contains(token.image)) {
+                      if(localTable.getTyp(token.image).equals("const")){
+                          table.addCodeToMethod ( methodeName, "bipush " + localTable.getValue(token.image));}
+                      else{
+                          table.addCodeToMethod ( methodeName, "iload " + localTable.getAddress(token.image));}
+
+                 } else if (table.contains(token.image)) {
+                     // Fallback auf globale Tabelle
+                      if(table.getTyp(token.image).equals("const")){
+                          codeErzeugung.add("bipush " + table.getValue(token.image));}
+                      else{
+
+                          codeErzeugung.add("iload " + table.getAddress(token.image));}
+                 } else {
+                     {if (true) throw new SymbolNotDeclaredException();}
+                 }
+             }
+         }
       break;
     case KLAMMERAUF:
       jj_consume_token(KLAMMERAUF);
@@ -174,32 +316,58 @@ public class MiniJava implements MiniJavaConstants {
       jj_consume_token(KLAMMERZU);
       break;
     default:
-      jj_la1[7] = jj_gen;
+      jj_la1[13] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
   }
 
-  static final public void statement() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void statement() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
     case IDENT:
       jj_consume_token(IDENT);
         String ide = token.image;
-        if (table.getTyp(ide).equals("const")) {
+        if (table.getTyp(ide)!=null && table.getTyp(ide).equals("const")) {
             {if (true) throw new ConstantModificationException();}
         }
-      jj_consume_token(22);
-      expression();
-      jj_consume_token(21);
-        codeErzeugung.add("istore " + table.getAddress(ide));
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case 25:
+        jj_consume_token(25);
+        expression();
+         if (!tableHandler.localTableExists()){
+             codeErzeugung.add("getstatic " +"[g"+ide+"]");
+         }
+         else{
+             SymbolTable localTable = tableHandler.currentTable();
+             String methodeName = localTable.getCurrentMethodName();
+             table.addCodeToMethod(methodeName,"istore " +table.getAddress(ide));
+
+         }
+        break;
+      case KLAMMERAUF:
+        procCall(ide);
+        break;
+      default:
+        jj_la1[14] = jj_gen;
+        jj_consume_token(-1);
+        throw new ParseException();
+      }
+      jj_consume_token(24);
       break;
     case PRINT:
       jj_consume_token(PRINT);
       jj_consume_token(KLAMMERAUF);
       expression();
-                                       codeErzeugung.add("print 00 23");
+      if (!tableHandler.localTableExists()){
+          codeErzeugung.add("print 00 23");
+      }
+      else {
+           SymbolTable localTable = tableHandler.currentTable();
+           String methodeName = localTable.getCurrentMethodName();
+           table.addCodeToMethod(methodeName,"print 00 23") ;
+      }
       jj_consume_token(KLAMMERZU);
-      jj_consume_token(21);
+      jj_consume_token(24);
       break;
     case IF:
       jj_consume_token(IF);
@@ -210,19 +378,20 @@ public class MiniJava implements MiniJavaConstants {
       int nach_state_if = codeErzeugung.getByteCount();
      int if_anweisung_if = (nach_state_if) - (nach_condition_if-1);
       codeErzeugung.insertAddress(Integer.toString(if_anweisung_if));
+      //codeErzeugung.add("goto " +gotoStrung);
+
       optElse();
       break;
-    case 24:
-      jj_consume_token(24);
+    case 27:
+      jj_consume_token(27);
       stmtLIST();
-      jj_consume_token(25);
+      jj_consume_token(28);
       break;
     case WHILE:
       jj_consume_token(WHILE);
             int vor_condition = codeErzeugung.getByteCount();
       condition();
         int nach_condition =codeErzeugung.getByteCount()-2;
-        System.out.println( "Nach Condition/if-Opcode:" +  nach_condition);
       statement();
             int nach_Statement = codeErzeugung.getByteCount();
             // Berechnung für goto-Sprung
@@ -235,66 +404,289 @@ public class MiniJava implements MiniJavaConstants {
             codeErzeugung.insertAddress(Integer.toString(if_anweisung));
       break;
     default:
-      jj_la1[8] = jj_gen;
+      jj_la1[15] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
   }
 
-  static final public void stmtLIST() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void stmtLIST() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
     case WHILE:
     case IF:
     case PRINT:
     case IDENT:
-    case 24:
+    case 27:
       statement();
       stmtLIST();
       break;
     default:
-      jj_la1[9] = jj_gen;
+      jj_la1[16] = jj_gen;
       Empty();
     }
   }
 
-  static final public void optElse() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void optElse() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
     case ELSE:
       jj_consume_token(ELSE);
+  int bevor_else = codeErzeugung.getByteCount();
       statement();
+  int else_state = codeErzeugung.getByteCount()-bevor_else;
+    //codeErzeugung.insertAdress("goto else_state");
+
       break;
     default:
-      jj_la1[10] = jj_gen;
+      jj_la1[17] = jj_gen;
       Empty();
     }
   }
 
-  static final public void condition() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist {
+  static final public void condition() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
     expression();
     jj_consume_token(ComOp);
                       String compOp =token.image;
     expression();
- switch (compOp) {
-         case "<":
-             codeErzeugung.add("if_icmpge -1"); // Umgekehrter Vergleich für "<"
-             break;
-         case "<=":
-             codeErzeugung.add("if_icmpgt -1"); // Umgekehrter Vergleich für "<="
-             break;
-         case ">":
-             codeErzeugung.add("if_icmple -1"); // Umgekehrter Vergleich für ">"
-             break;
-         case ">=":
-             codeErzeugung.add("if_icmplt -1 "); // Umgekehrter Vergleich für ">="
-             break;
-         case "==":
-             codeErzeugung.add("if_icmpne -1" ); // Umgekehrter Vergleich für "=="
-             break;
-         case "!=":
-             codeErzeugung.add("if_icmpeq -1"); // Umgekehrter Vergleich für "!="
-             break;
-         default:
-     }
+    boolean existsLocalTable = false;
+    SymbolTable localTable = null;
+    String methodeName = null;
+
+    // Überprüfen, ob eine lokale Tabelle existiert
+    if (tableHandler.localTableExists()) {
+        existsLocalTable = true;
+        localTable = tableHandler.currentTable();
+        methodeName = localTable.getCurrentMethodName();
+    }
+
+    // Switch-Fallunterscheidung für Vergleichsoperatoren
+    switch (compOp) {
+        case "<":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmpge -1");
+            } else {
+                codeErzeugung.add("if_icmpge -1"); // Für globale Tabelle
+            }
+            break;
+        case "<=":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmpgt -1");
+            } else {
+                codeErzeugung.add("if_icmpgt -1");
+            }
+            break;
+        case ">":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmple -1");
+            } else {
+                codeErzeugung.add("if_icmple -1");
+            }
+            break;
+        case ">=":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmplt -1");
+            } else {
+                codeErzeugung.add("if_icmplt -1");
+            }
+            break;
+        case "==":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmpne -1");
+            } else {
+                codeErzeugung.add("if_icmpne -1");
+            }
+            break;
+        case "!=":
+            if (existsLocalTable) {
+                table.addCodeToMethod(methodeName, "if_icmpeq -1");
+            } else {
+                codeErzeugung.add("if_icmpeq -1");
+            }
+            break;
+        default:
+            {if (true) throw new IllegalArgumentException("Ung\u00fcltiger Vergleichsoperator: " + compOp);}
+    }
+  }
+
+  static final public void procedure() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+    jj_consume_token(VOID);
+    jj_consume_token(IDENT);
+                String ide = token.image; tableHandler.createTable(ide); table.addMethod(ide, "void");
+    jj_consume_token(KLAMMERAUF);
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case INT:
+      routinenParameter(ide);
+      break;
+    default:
+      jj_la1[18] = jj_gen;
+      Empty();
+    }
+    jj_consume_token(KLAMMERZU);
+    jj_consume_token(27);
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case FINAL:
+    case INT:
+    case WHILE:
+    case IF:
+    case PRINT:
+    case IDENT:
+    case 27:
+      routinenBlock();
+      break;
+    default:
+      jj_la1[19] = jj_gen;
+      Empty();
+    }
+    jj_consume_token(28);
+      table.addCodeToMethod(ide, "return");
+      constantPool.addMethod(ide,"void", table.getParameterFromMethodPara(ide));
+      ArrayList<String> methodCode = table.getByteCodeForMethod(ide);
+      codeErzeugung.insertMethodCode(methodCode);
+      tableHandler.removeCurrentTable();
+  }
+
+  static final public void function() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+    jj_consume_token(FUNC);
+    jj_consume_token(IDENT);
+                 String ide = token.image; tableHandler.createTable(ide); table.addMethod(ide, "func");
+    jj_consume_token(KLAMMERAUF);
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case INT:
+      routinenParameter(ide);
+      break;
+    default:
+      jj_la1[20] = jj_gen;
+      Empty();
+    }
+    jj_consume_token(KLAMMERZU);
+    jj_consume_token(27);
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case FINAL:
+    case INT:
+    case WHILE:
+    case IF:
+    case PRINT:
+    case IDENT:
+    case 27:
+      routinenBlock();
+      break;
+    default:
+      jj_la1[21] = jj_gen;
+      Empty();
+    }
+    jj_consume_token(RETURN);
+    expression();
+    jj_consume_token(24);
+    jj_consume_token(28);
+table.addCodeToMethod(ide, "ireturn");
+constantPool.addMethod(ide,"int", table.getParameterFromMethodPara(ide));
+
+ArrayList<String> methodCode = table.getByteCodeForMethod(ide);
+codeErzeugung.insertMethodCode(methodCode);
+tableHandler.removeCurrentTable();
+  }
+
+  static final public void routinenParameter(String ide) throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+ SymbolTable symbolTable = tableHandler.currentTable(); int para = 0;
+    jj_consume_token(INT);
+    jj_consume_token(IDENT);
+                  para = para +1;
+    label_3:
+    while (true) {
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case 26:
+        ;
+        break;
+      default:
+        jj_la1[22] = jj_gen;
+        break label_3;
+      }
+      jj_consume_token(26);
+      jj_consume_token(INT);
+      jj_consume_token(IDENT);
+                                                          para = para +1;
+    }
+  table.addMethodPara(ide, para);
+  }
+
+  static final public void routinenBlock() throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+    constDecl();
+    varDeclLocal();
+    statement();
+  }
+
+  static final public void functionCall(String ide) throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+     int anzahlPara = 0;
+    jj_consume_token(KLAMMERAUF);
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case NUMBER:
+    case KLAMMERAUF:
+    case IDENT:
+      expression();
+                   anzahlPara++;
+      label_4:
+      while (true) {
+        switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+        case 26:
+          ;
+          break;
+        default:
+          jj_la1[23] = jj_gen;
+          break label_4;
+        }
+        jj_consume_token(26);
+        expression();
+                                                    anzahlPara++;
+      }
+      break;
+    default:
+      jj_la1[24] = jj_gen;
+      Empty();
+    }
+    jj_consume_token(KLAMMERZU);
+    varDeclLocal();
+     int methodPara = table.getActuallyMethodPara(ide);
+    if(methodPara!=anzahlPara){
+      {if (true) throw new WrongParametersException();}
+    }
+
+    codeErzeugung.add("invokestatic "+ 11);
+  }
+
+  static final public void procCall(String ide) throws ParseException, ConstantModificationException, SymbolAlreadyDefinedException, SymbolNotDeclaredException, SymbolDoesNotExist, WrongParametersException, RwertException {
+     int anzahlPara = 0;
+    jj_consume_token(KLAMMERAUF);
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case NUMBER:
+    case KLAMMERAUF:
+    case IDENT:
+      expression();
+                       anzahlPara++;
+      label_5:
+      while (true) {
+        switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+        case 26:
+          ;
+          break;
+        default:
+          jj_la1[25] = jj_gen;
+          break label_5;
+        }
+        jj_consume_token(26);
+        expression();
+                                                        anzahlPara++;
+      }
+      break;
+    default:
+      jj_la1[26] = jj_gen;
+      Empty();
+    }
+    jj_consume_token(KLAMMERZU);
+    varDeclLocal();
+         int methodPara = table.getActuallyMethodPara(ide);
+        if(methodPara!=anzahlPara){
+          {if (true) throw new WrongParametersException();}
+        }
+        codeErzeugung.add("invokestatic "+ 11);
   }
 
   static private boolean jj_initialized_once = false;
@@ -307,13 +699,13 @@ public class MiniJava implements MiniJavaConstants {
   static public Token jj_nt;
   static private int jj_ntk;
   static private int jj_gen;
-  static final private int[] jj_la1 = new int[11];
+  static final private int[] jj_la1 = new int[27];
   static private int[] jj_la1_0;
   static {
       jj_la1_init_0();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0x20,0x800000,0x40,0x400000,0x800000,0x18000,0x60000,0x102800,0x1100580,0x1100580,0x200,};
+      jj_la1_0 = new int[] {0x800,0x1000,0x20,0x4000000,0x40,0x2000000,0x4000000,0x40,0x2000000,0x4000000,0xc0000,0x300000,0x10000,0x814000,0x2010000,0x8800580,0x8800580,0x200,0x40,0x88005e0,0x40,0x88005e0,0x4000000,0x4000000,0x814000,0x4000000,0x814000,};
    }
 
   /** Constructor with InputStream. */
@@ -334,7 +726,7 @@ public class MiniJava implements MiniJavaConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 11; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 27; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -348,7 +740,7 @@ public class MiniJava implements MiniJavaConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 11; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 27; i++) jj_la1[i] = -1;
   }
 
   /** Constructor. */
@@ -365,7 +757,7 @@ public class MiniJava implements MiniJavaConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 11; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 27; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -375,7 +767,7 @@ public class MiniJava implements MiniJavaConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 11; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 27; i++) jj_la1[i] = -1;
   }
 
   /** Constructor with generated Token Manager. */
@@ -391,7 +783,7 @@ public class MiniJava implements MiniJavaConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 11; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 27; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -400,7 +792,7 @@ public class MiniJava implements MiniJavaConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 11; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 27; i++) jj_la1[i] = -1;
   }
 
   static private Token jj_consume_token(int kind) throws ParseException {
@@ -451,12 +843,12 @@ public class MiniJava implements MiniJavaConstants {
   /** Generate ParseException. */
   static public ParseException generateParseException() {
     jj_expentries.clear();
-    boolean[] la1tokens = new boolean[26];
+    boolean[] la1tokens = new boolean[29];
     if (jj_kind >= 0) {
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 11; i++) {
+    for (int i = 0; i < 27; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1<<j)) != 0) {
@@ -465,7 +857,7 @@ public class MiniJava implements MiniJavaConstants {
         }
       }
     }
-    for (int i = 0; i < 26; i++) {
+    for (int i = 0; i < 29; i++) {
       if (la1tokens[i]) {
         jj_expentry = new int[1];
         jj_expentry[0] = i;

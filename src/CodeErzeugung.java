@@ -29,7 +29,11 @@ public class CodeErzeugung
         opcodeMap.put("goto", 0xa7); // <=
         opcodeMap.put("return", 0xb1);
         opcodeMap.put("print", 0xb8);
-
+        opcodeMap.put("ireturn" , 0xac);
+        opcodeMap.put("invokestatic" , 0xb8);
+        opcodeMap.put("invokestatic" , 0xb8);
+        opcodeMap.put("putstatic" , 0xb3);
+        opcodeMap.put("getstatic" , 0xb2);
 
 
     }
@@ -88,7 +92,9 @@ public class CodeErzeugung
                     case "if_icmple":
                     case "if_icmpgt":
                     case "if_icmplt":
-                    case "goto":
+                        case "goto":
+                    case"getstatic":
+                      case "putstatic":
 
                         byteCount += 2;
                         break;
@@ -114,6 +120,36 @@ public class CodeErzeugung
     }
 
 
+    public void insertMethodCode(ArrayList<String> code){
+
+        for(int i = code.size() - 1; i >= 0; i--){
+            Code.addFirst(code.get(i));
+        }
+
+
+    }
+
+
+    public String toUpperCase(String str) {
+        StringBuilder result = new StringBuilder();
+
+        for (int i = 0; i < str.length(); i++) {
+            char c = str.charAt(i);
+            if (c >= 'a' && c <= 'z') {
+                c = (char) (c - 'a' + 'A');
+            }
+            result.append(c);
+        }
+
+        return result.toString();
+    }
+
+
+
+    public void setJumpOverMethod(String befehl){
+        Code.addFirst(befehl);
+    }
+
     public void translateToOpcodes() {
 
         for (String line : Code) {
@@ -127,8 +163,15 @@ public class CodeErzeugung
                     if (parts.length == 2) {
                         // Hier fügen wir das fehlende Byte hinzu, um den Sprung korrekt zu machen
                         if(mnemonic.equals("goto")){
-                            String[] parts_ = { parts[0], "255", parts[1] }; // Füge "ff als Platzhalter hinzu
-                            parts = parts_; // Teile neu zuweisen
+                            int value = Integer.parseInt(parts[1]);
+                            if(value < 0){
+                                String[] parts_ = { parts[0], "255", parts[1] }; // Füge "ff als Platzhalter hinzu
+                                parts = parts_; // Teile neu zuweisen
+                            }else{
+                                String[] parts_ = { parts[0], "00", parts[1] }; // Füge "ff als Platzhalter hinzu
+                                parts = parts_; // Teile neu zuweisen
+                            }
+
                         }
                         else{
                             String[] parts_ = { parts[0], "00", parts[1] }; // Füge "00" als Platzhalter hinzu
@@ -137,6 +180,12 @@ public class CodeErzeugung
 
 
                     }
+                }
+
+                if(mnemonic.equals("putstatic")||mnemonic.equals("getstatic")){
+                    translatedCode.add(String.format("%02x", opcodeMap.get(mnemonic)));
+                    translatedCode.add(parts[1]);
+                    continue;
                 }
 
                 translatedCode.add(String.format("%02x", opcodeMap.get(mnemonic)));
@@ -173,6 +222,10 @@ public class CodeErzeugung
 
      public int getByteCount() {
         return byteCount;
+     }
+
+     public ArrayList<String> getCodeMnemonic() {
+        return Code;
      }
 
 }
